@@ -65,7 +65,6 @@ if error_descr_str!='':
     print("    where [pipe > yourfile.txt] is optional and specifies that you want to pipe your results to yourfile.txt.")
     sys.exit(1)
 
-
 SerialNumber = int(sys.argv[1])
 SamplePeriod = int(sys.argv[2])
 
@@ -74,12 +73,12 @@ SamplePeriod = int(sys.argv[2])
 # ====================================
 
 def parseSerialNumber(ManuDataHexStr):
-    if (ManuDataHexStr == None or ManuDataHexStr == "None"):
+    if ManuDataHexStr == None or ManuDataHexStr == "None":
         SN = "Unknown"
     else:
         ManuData = bytearray.fromhex(ManuDataHexStr)
 
-        if (((ManuData[1] << 8) | ManuData[0]) == 0x0334):
+        if ((ManuData[1] << 8) | ManuData[0]) == 0x0334:
             SN  =  ManuData[2]
             SN |= (ManuData[3] << 8)
             SN |= (ManuData[4] << 16)
@@ -94,8 +93,6 @@ def parseSerialNumber(ManuDataHexStr):
 
 class WavePlus():
 
-    
-    
     def __init__(self, SerialNumber):
         self.periph        = None
         self.curr_val_char = None
@@ -105,7 +102,7 @@ class WavePlus():
 
     def connect(self):
         # Auto-discover device on first connection
-        if (self.MacAddr is None):
+        if self.MacAddr is None:
             scanner     = Scanner().withDelegate(DefaultDelegate())
             searchCount = 0
             while self.MacAddr is None and searchCount < 50:
@@ -114,11 +111,11 @@ class WavePlus():
                 for dev in devices:
                     ManuData = dev.getValueText(255)
                     SN = parseSerialNumber(ManuData)
-                    if (SN == self.SN):
+                    if SN == self.SN:
                         self.MacAddr = dev.addr # exits the while loop on next conditional check
                         break # exit for loop
             
-            if (self.MacAddr is None):
+            if self.MacAddr is None:
                 print("ERROR: Could not find device.")
                 print("GUIDE: (1) Please verify the serial number.")
                 print("       (2) Ensure that the device is advertising.")
@@ -126,15 +123,15 @@ class WavePlus():
                 sys.exit(1)
         
         # Connect to device
-        if (self.periph is None):
+        if self.periph is None:
             self.periph = Peripheral(self.MacAddr)
-        if (self.curr_val_char is None):
+        if self.curr_val_char is None:
             self.curr_val_char = self.periph.getCharacteristics(uuid=self.uuid)[0]
         
     def read(self):
-        if (self.curr_val_char is None):
+        if self.curr_val_char is None:
             print("ERROR: Devices are not connected.")
-            sys.exit(1)            
+            sys.exit(1)
         rawdata = self.curr_val_char.read()
         rawdata = struct.unpack('<BBBBHHHHHHHH', rawdata)
         sensors = Sensors()
@@ -168,7 +165,7 @@ class Sensors():
     
     def set(self, rawData):
         self.sensor_version = rawData[0]
-        if (self.sensor_version == 1):
+        if self.sensor_version == 1:
             self.sensor_data[SENSOR_IDX_HUMIDITY]             = rawData[1]/2.0
             self.sensor_data[SENSOR_IDX_RADON_SHORT_TERM_AVG] = self.conv2radon(rawData[4])
             self.sensor_data[SENSOR_IDX_RADON_LONG_TERM_AVG]  = self.conv2radon(rawData[5])
@@ -192,22 +189,30 @@ class Sensors():
 
     def getUnit(self, sensor_index):
         return self.sensor_units[sensor_index]
+    
+    def getTextRepresent(self, sensor_index):
+        return str(self.getValue(sensor_index)) + " " + str(self.getUnit(sensor_index))
+    
+
+# this is the part that actually communicates with the device
 
 try:
     #---- Initialize ----#
     waveplus = WavePlus(SerialNumber)
     
-    if (Mode=='terminal'):
+    if Mode=='terminal':
         print("\nPress ctrl+C to exit program\n")
     
     print("Device serial number: %s" %(SerialNumber))
     
     header = ['Humidity', 'Radon ST avg', 'Radon LT avg', 'Temperature', 'Pressure', 'CO2 level', 'VOC level']
     
-    if (Mode=='terminal'):
+    if Mode=='terminal':
         print(tableprint.header(header, width=12))
-    elif (Mode=='pipe'):
+    elif Mode=='pipe':
         print(header)
+    else:
+        raise ValueError('Unregonized Mode: ',Mode) 
         
     while True:
         
@@ -217,13 +222,14 @@ try:
         sensors = waveplus.read()
         
         # extract
-        humidity     = str(sensors.getValue(SENSOR_IDX_HUMIDITY))             + " " + str(sensors.getUnit(SENSOR_IDX_HUMIDITY))
-        radon_st_avg = str(sensors.getValue(SENSOR_IDX_RADON_SHORT_TERM_AVG)) + " " + str(sensors.getUnit(SENSOR_IDX_RADON_SHORT_TERM_AVG))
-        radon_lt_avg = str(sensors.getValue(SENSOR_IDX_RADON_LONG_TERM_AVG))  + " " + str(sensors.getUnit(SENSOR_IDX_RADON_LONG_TERM_AVG))
-        temperature  = str(sensors.getValue(SENSOR_IDX_TEMPERATURE))          + " " + str(sensors.getUnit(SENSOR_IDX_TEMPERATURE))
-        pressure     = str(sensors.getValue(SENSOR_IDX_REL_ATM_PRESSURE))     + " " + str(sensors.getUnit(SENSOR_IDX_REL_ATM_PRESSURE))
-        CO2_lvl      = str(sensors.getValue(SENSOR_IDX_CO2_LVL))              + " " + str(sensors.getUnit(SENSOR_IDX_CO2_LVL))
-        VOC_lvl      = str(sensors.getValue(SENSOR_IDX_VOC_LVL))              + " " + str(sensors.getUnit(SENSOR_IDX_VOC_LVL))
+
+        humidity     = sensors.getTextRepresent(SENSOR_IDX_HUMIDITY)
+        radon_st_avg = sensors.getTextRepresent(SENSOR_IDX_RADON_SHORT_TERM_AVG)
+        radon_lt_avg = sensors.getTextRepresent(SENSOR_IDX_RADON_LONG_TERM_AVG)
+        temperature  = sensors.getTextRepresent(SENSOR_IDX_TEMPERATURE)
+        pressure     = sensors.getTextRepresent(SENSOR_IDX_REL_ATM_PRESSURE)
+        CO2_lvl      = sensors.getTextRepresent(SENSOR_IDX_CO2_LVL)
+        VOC_lvl      = sensors.getTextRepresent(SENSOR_IDX_VOC_LVL)
         
         # Print data
         data = [humidity, radon_st_avg, radon_lt_avg, temperature, pressure, CO2_lvl, VOC_lvl]
