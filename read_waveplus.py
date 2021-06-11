@@ -212,9 +212,9 @@ try:
     header = ['Humidity', 'Radon ST avg', 'Radon LT avg', 'Temperature', 'Pressure', 'CO2 level', 'VOC level']
     
     if (Mode=='terminal'):
-        print tableprint.header(header, width=12)
+        print(tableprint.header(header, width=12))
     elif (Mode=='pipe'):
-        print header
+        print(header)
         
     while True:
         
@@ -236,9 +236,9 @@ try:
         data = [humidity, radon_st_avg, radon_lt_avg, temperature, pressure, CO2_lvl, VOC_lvl]
         
         if (Mode=='terminal'):
-            print tableprint.row(data, width=12)
+            print(tableprint.row(data, width=12))
         elif (Mode=='pipe'):
-            print data
+            print(data)
         
         waveplus.disconnect()
         
